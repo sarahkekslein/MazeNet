@@ -63,7 +63,7 @@ public class Client {
 		
 		
 		PositionType shiftPosition = new PositionType();
-		PositionType pinPosition = null;
+		PositionType pinPosition = new PositionType();
 		boolean foundTreasure = false;
 		for (int i = 1; i < 6; i+=2) {
 			System.out.println("Äußere Schleife: " + i);
@@ -72,44 +72,21 @@ public class Client {
 			}
 			for (int j = 0; j < 7; j+=6) {
 				System.out.println("Innere Schleife: " + j);
-				shiftPosition.setRow(i);
-				shiftPosition.setCol(j);				
-				if (!positionEquals(shiftPosition, awaitMoveMessage.getBoard().getForbidden())) {
-					System.out.println("nicht verboten");
-					// Schiebekarte kopieren
-					CardType shiftCard = new CardType();
-					shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
-					shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
-					CardType.Pin pin = new Pin();
-					pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().getPin().getPlayerID());
-					shiftCard.setPin(pin);
-
-					// schieben simulieren
-					Board board = new Board(awaitMoveMessage.getBoard());
-					doShift(board, shiftCard, shiftPosition);
-
-					// alle erreichbaren Positionen finden
-					PositionType currentPosition = findPlayer(board);
-					List<PositionType> reachable = getReachablePositions(board, currentPosition);
-
-					//wenn Schatz erreichbar, dort hingehen
-					TreasureType treasure = awaitMoveMessage.getTreasure();
-					System.out.println("Suche Schatz " + i +";" +j);
-					for (PositionType position : reachable) {
-						Card c = new Card(board.getCard(position.getRow(), position.getCol()));					
-						if (c.getTreasure() == treasure) {
-							pinPosition = position;
-							foundTreasure = true;
-							System.err.println("Schatz gefunden!");
-							break;							
-						}
-					}
-					if (foundTreasure) {
-						break;
-					}
+				
+				foundTreasure = searchMove(pinPosition, shiftPosition, i, j, awaitMoveMessage);
+				if(!foundTreasure){
+					foundTreasure = searchMove(pinPosition, shiftPosition, j, i, awaitMoveMessage);
 				}
-			}			
+				if(foundTreasure){
+					break;
+				}
+				
+				
+				
+			}
+			
 		}
+		
 		if (!foundTreasure) {
 			System.out.println("Zufall!");
 			Board b = new Board(awaitMoveMessage.getBoard());
@@ -196,6 +173,46 @@ public class Client {
 		if (!acceptMessage.isAccept()) {
 			System.err.println("Fehler: " + acceptMessage.getErrorCode());
 		}
+	}
+	
+	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col, AwaitMoveMessageType awaitMoveMessage){
+		shiftPosition.setRow(row);
+		shiftPosition.setCol(col);				
+		if (!positionEquals(shiftPosition, awaitMoveMessage.getBoard().getForbidden())) {
+			System.out.println("nicht verboten");
+			// Schiebekarte kopieren
+			CardType shiftCard = new CardType();
+			shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
+			shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
+			CardType.Pin pin = new Pin();
+			pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().getPin().getPlayerID());
+			shiftCard.setPin(pin);
+
+			// schieben simulieren
+			Board board = new Board(awaitMoveMessage.getBoard());
+			doShift(board, shiftCard, shiftPosition);
+
+			// alle erreichbaren Positionen finden
+			PositionType currentPosition = findPlayer(board);
+			List<PositionType> reachable = getReachablePositions(board, currentPosition);
+
+			//wenn Schatz erreichbar, dort hingehen
+			TreasureType treasure = awaitMoveMessage.getTreasure();
+			System.out.println("Suche Schatz " + row +";" +col);
+			for (PositionType position : reachable) {
+				Card c = new Card(board.getCard(position.getRow(), position.getCol()));					
+				if (c.getTreasure() == treasure) {
+					pinPosition.setCol(position.getCol()); 
+					pinPosition.setRow(position.getRow());
+					System.out.println("Schatz gefunden!");
+					System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol()); 
+					System.out.println("Shift:" + shiftPosition.getRow() + ", " + shiftPosition.getCol());
+					return true;							
+				}
+			}
+			
+		}
+		return false;
 	}
 
 	private boolean positionEquals(PositionType position1, PositionType position2) {
