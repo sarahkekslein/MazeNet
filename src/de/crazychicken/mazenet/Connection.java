@@ -37,9 +37,17 @@ public class Connection {
 			// nice
 			this.playerId = response.getLoginReplyMessage().getNewID();
 		} else if (response.getMcType() == MazeComType.ACCEPT) {
-			// oops, accept should be false, something went wrong :(
+			AcceptMessageType message = response.getAcceptMessage();
+			ErrorType error = message.getErrorCode();
+			System.out.println("Der Fehler ist: " + error.value());
+			ErrorType err = ErrorType.valueOf(error.value());
+			if (err == ErrorType.AWAIT_LOGIN) {
+				System.out.println("Wir müssen uns immer noch einloggen, es wird gewartet!");
+			}
+			sendLogin();
 		} else if (response.getMcType() == MazeComType.DISCONNECT) {
 			// dayum
+			System.out.println("Direkt Verbindung getrennt nach Login");
 		}
 	}
 

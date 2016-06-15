@@ -47,7 +47,7 @@ public class Client {
 
 			// Aktion je nach Typ der Nachricht ausf√ºhren
 			if (message.getMcType() == MazeComType.DISCONNECT) {
-				onDisconnect();
+				onDisconnect(message.getDisconnectMessage());
 				return;
 			} else if (message.getMcType() == MazeComType.WIN) {
 				onWin(message.getWinMessage().getWinner());
@@ -60,38 +60,41 @@ public class Client {
 	private void onAwaitMove(AwaitMoveMessageType awaitMoveMessage) throws UnmarshalException, IOException {
 		System.out.println("Wir sind dran! Runde " + this.moveCount);
 		this.moveCount++;
-		
-		
+
+		// schauen, dass selbst nicht ganz eingekesselt und mˆglichst wenige
+		// Mauern bis zum Schatz
+
 		PositionType shiftPosition = new PositionType();
 		PositionType pinPosition = new PositionType();
 		boolean foundTreasure = false;
-		for (int i = 1; i < 6; i+=2) {
-			System.out.println("ƒuﬂere Schleife: " + i);
-			if (foundTreasure)  {
-				break;
-			}
-			for (int j = 0; j < 7; j+=6) {
-				System.out.println("Innere Schleife: " + j);
-				
-				foundTreasure = searchMove(pinPosition, shiftPosition, i, j, awaitMoveMessage);
-				if(!foundTreasure){
-					foundTreasure = searchMove(pinPosition, shiftPosition, j, i, awaitMoveMessage);
-				}
-				if(foundTreasure){
+		boolean useRandom = false;
+		if (!useRandom) {
+			for (int i = 1; i < 6; i += 2) {
+				System.out.println("ƒuﬂere Schleife: " + i);
+				if (foundTreasure) {
 					break;
 				}
-				
-				
-				
+				for (int j = 0; j < 7; j += 6) {
+					System.out.println("Innere Schleife: " + j);
+
+					foundTreasure = searchMove(pinPosition, shiftPosition, i, j, awaitMoveMessage);
+					if (!foundTreasure) {
+						foundTreasure = searchMove(pinPosition, shiftPosition, j, i, awaitMoveMessage);
+					}
+					if (foundTreasure) {
+						break;
+					}
+
+				}
 			}
-			
 		}
-		
-		if (!foundTreasure) {
+
+		if (!foundTreasure || useRandom) {
 			System.out.println("Zufall!");
 			Board b = new Board(awaitMoveMessage.getBoard());
-			while (positionEquals(shiftPosition = randomShiftPosition(), awaitMoveMessage.getBoard().getForbidden()));
-			
+			while (positionEquals(shiftPosition = randomShiftPosition(), awaitMoveMessage.getBoard().getForbidden()))
+				;
+
 			CardType shiftCard = new CardType();
 			shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
 			shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
@@ -105,79 +108,107 @@ public class Client {
 			List<PositionType> reachable = getReachablePositions(b, currentPosition);
 			Collections.shuffle(reachable);
 			pinPosition = reachable.get(0);
-			
+
 			/*
-			//Collections.shuffle(emergency);
-			PositionType firstKey = emergency.keySet().iterator().next(); // erstes Element?
-			shiftPosition = firstKey; //key
-			pinPosition = emergency.get(firstKey);//value
-			*/
+			 * //Collections.shuffle(emergency); PositionType firstKey =
+			 * emergency.keySet().iterator().next(); // erstes Element?
+			 * shiftPosition = firstKey; //key pinPosition =
+			 * emergency.get(firstKey);//value
+			 */
 		}
 
 		/*
-		// zuf√§llige Position zum Schieben finden, die nicht der letzten
-		// (verbotenen) entspricht
-		PositionType shiftPosition;
-		while (positionEquals(shiftPosition = randomShiftPosition(), awaitMoveMessage.getBoard().getForbidden()))
-			;
-
-		
-		
-		// Schiebekarte kopieren
-		CardType shiftCard = new CardType();
-		shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
-		shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
-		CardType.Pin pin = new Pin();
-		pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().getPin().getPlayerID());
-		shiftCard.setPin(pin);
-
-		// schieben simulieren
-		doShift(awaitMoveMessage.getBoard(), shiftCard, shiftPosition);
-
-		// alle erreichbaren Positionen finden
-		PositionType currentPosition = findPlayer(awaitMoveMessage.getBoard());
-		List<PositionType> reachable = getReachablePositions(awaitMoveMessage.getBoard(), currentPosition);
-
-		//wenn Schatz erreichbar, dort hingehen
-		PositionType pinPosition = null;
-		Board board = new Board(awaitMoveMessage.getBoard());
-		TreasureType treasure = awaitMoveMessage.getTreasure();
-		for (PositionType position : reachable) {
-			Card c = new Card(board.getCard(position.getRow(), position.getCol()));
-			if (c.getTreasure() == treasure) {
-				pinPosition = position;
-			}
-		}
-
-		if (pinPosition == null) {
-			Collections.shuffle(reachable);
-			pinPosition = reachable.get(0);
-		}
-		*/
+		 * // zuf√§llige Position zum Schieben finden, die nicht der letzten //
+		 * (verbotenen) entspricht PositionType shiftPosition; while
+		 * (positionEquals(shiftPosition = randomShiftPosition(),
+		 * awaitMoveMessage.getBoard().getForbidden())) ;
+		 * 
+		 * 
+		 * 
+		 * // Schiebekarte kopieren CardType shiftCard = new CardType();
+		 * shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().
+		 * getOpenings());
+		 * shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().
+		 * getTreasure()); CardType.Pin pin = new Pin();
+		 * pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().
+		 * getPin().getPlayerID()); shiftCard.setPin(pin);
+		 * 
+		 * // schieben simulieren doShift(awaitMoveMessage.getBoard(),
+		 * shiftCard, shiftPosition);
+		 * 
+		 * // alle erreichbaren Positionen finden PositionType currentPosition =
+		 * findPlayer(awaitMoveMessage.getBoard()); List<PositionType> reachable
+		 * = getReachablePositions(awaitMoveMessage.getBoard(),
+		 * currentPosition);
+		 * 
+		 * //wenn Schatz erreichbar, dort hingehen PositionType pinPosition =
+		 * null; Board board = new Board(awaitMoveMessage.getBoard());
+		 * TreasureType treasure = awaitMoveMessage.getTreasure(); for
+		 * (PositionType position : reachable) { Card c = new
+		 * Card(board.getCard(position.getRow(), position.getCol())); if
+		 * (c.getTreasure() == treasure) { pinPosition = position; } }
+		 * 
+		 * if (pinPosition == null) { Collections.shuffle(reachable);
+		 * pinPosition = reachable.get(0); }
+		 */
 		// zuf√§llige Position w√§hlen
 		/*
 		 * Collections.shuffle(reachable); PositionType pinPosition =
 		 * reachable.get(0);
 		 */
-		System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol()); 
+		System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol());
 		System.out.println("Shift:" + shiftPosition.getRow() + ", " + shiftPosition.getCol());
 		if (awaitMoveMessage.getBoard().getForbidden() != null) {
-			System.out.println("Forbidden:" + awaitMoveMessage.getBoard().getForbidden().getRow() + ", " + awaitMoveMessage.getBoard().getForbidden().getCol()); 
+			System.out.println("Forbidden:" + awaitMoveMessage.getBoard().getForbidden().getRow() + ", "
+					+ awaitMoveMessage.getBoard().getForbidden().getCol());
 		}
 		// Zug senden
 		this.connection.sendMove(shiftPosition.getRow(), shiftPosition.getCol(), pinPosition.getRow(),
 				pinPosition.getCol(), awaitMoveMessage.getBoard().getShiftCard());
 
 		// Best√§tigung empfangen
-		AcceptMessageType acceptMessage = this.connection.getXmlInStream().readMazeCom().getAcceptMessage();
-		if (!acceptMessage.isAccept()) {
-			System.err.println("Fehler: " + acceptMessage.getErrorCode());
+		/*
+		 * AcceptMessageType acceptMessage =
+		 * this.connection.getXmlInStream().readMazeCom().getAcceptMessage(); if
+		 * (!acceptMessage.isAccept()) { System.err.println("Fehler: " +
+		 * acceptMessage.getErrorCode()); }
+		 */
+		MazeCom response;
+		response = this.connection.getXmlInStream().readMazeCom();
+
+		AcceptMessageType message = response.getAcceptMessage();
+		if (message.isAccept()) {
+			System.out.println("Zug wurde erfolgreich angenommen.");
+		} else {
+			System.out.println("Es gab Fehler!");
+			ErrorType error = message.getErrorCode();
+			ErrorType err = ErrorType.valueOf(error.value());
+			if (err == ErrorType.ILLEGAL_MOVE) {
+				System.out.println("Illegaler Zug!");
+				if (foundTreasure) {
+					// Ki ist falsch, der Zug war kein zufall, es muss ein
+					// anderen Zug gew‰hlt werden und nicht wieder derselbe
+					// berechnet werden
+					useRandom = true;
+				}
+				// anderen Zug schicken
+			} else if (err == ErrorType.AWAIT_MOVE) {
+				System.out.println("AWAIT_MOVE!");
+			} else if (err == ErrorType.ERROR) {
+				System.out.println("Fehler");
+			} else if (err == ErrorType.TIMEOUT) {
+				System.out.println("Zu lang gebraucht!");
+				// Andere KI
+			}
+
 		}
+
 	}
-	
-	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col, AwaitMoveMessageType awaitMoveMessage){
+
+	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col,
+			AwaitMoveMessageType awaitMoveMessage) {
 		shiftPosition.setRow(row);
-		shiftPosition.setCol(col);				
+		shiftPosition.setCol(col);
 		if (!positionEquals(shiftPosition, awaitMoveMessage.getBoard().getForbidden())) {
 			System.out.println("nicht verboten");
 			// Schiebekarte kopieren
@@ -196,21 +227,21 @@ public class Client {
 			PositionType currentPosition = findPlayer(board);
 			List<PositionType> reachable = getReachablePositions(board, currentPosition);
 
-			//wenn Schatz erreichbar, dort hingehen
+			// wenn Schatz erreichbar, dort hingehen
 			TreasureType treasure = awaitMoveMessage.getTreasure();
-			System.out.println("Suche Schatz " + row +";" +col);
+			System.out.println("Suche Schatz " + row + ";" + col);
 			for (PositionType position : reachable) {
-				Card c = new Card(board.getCard(position.getRow(), position.getCol()));					
+				Card c = new Card(board.getCard(position.getRow(), position.getCol()));
 				if (c.getTreasure() == treasure) {
-					pinPosition.setCol(position.getCol()); 
+					pinPosition.setCol(position.getCol());
 					pinPosition.setRow(position.getRow());
 					System.out.println("Schatz gefunden!");
-					System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol()); 
+					System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol());
 					System.out.println("Shift:" + shiftPosition.getRow() + ", " + shiftPosition.getCol());
-					return true;							
+					return true;
 				}
 			}
-			
+
 		}
 		return false;
 	}
@@ -297,8 +328,10 @@ public class Client {
 		System.out.println("Spiel vorbei! Gewinner hat: " + winner.getValue());
 	}
 
-	private void onDisconnect() {
-		System.err.println("Verbindung getrennt!");
+	private void onDisconnect(DisconnectMessageType message) {
+		ErrorType error = message.getErrorCode();
+		System.out.println("Der Fehler ist: " + error.value());
+		System.out.println("Verbindung getrennt!");
 	}
 
 	private PositionType randomShiftPosition() {
@@ -325,34 +358,21 @@ public class Client {
 
 		return position;
 	}
-	
+
 	/*
-	private PositionType shiftPosition(PositionType forbidden) {
-		PositionType position = new PositionType();
-		
-
-		switch (random.nextInt(4)) {
-		case 0:
-			position.setRow(0);
-			position.setCol(this.random.nextInt(7 / 2) * 2 + 1);
-			break;
-		case 1:
-			position.setRow(7 - 1);
-			position.setCol(this.random.nextInt(7 / 2) * 2 + 1);
-			break;
-		case 2:
-			position.setRow(this.random.nextInt(7 / 2) * 2 + 1);
-			position.setCol(0);
-			break;
-		case 3:
-			position.setRow(this.random.nextInt(7 / 2) * 2 + 1);
-			position.setCol(7 - 1);
-			break;
-		}
-
-		return position;
-	}
-	*/
+	 * private PositionType shiftPosition(PositionType forbidden) { PositionType
+	 * position = new PositionType();
+	 * 
+	 * 
+	 * switch (random.nextInt(4)) { case 0: position.setRow(0);
+	 * position.setCol(this.random.nextInt(7 / 2) * 2 + 1); break; case 1:
+	 * position.setRow(7 - 1); position.setCol(this.random.nextInt(7 / 2) * 2 +
+	 * 1); break; case 2: position.setRow(this.random.nextInt(7 / 2) * 2 + 1);
+	 * position.setCol(0); break; case 3: position.setRow(this.random.nextInt(7
+	 * / 2) * 2 + 1); position.setCol(7 - 1); break; }
+	 * 
+	 * return position; }
+	 */
 
 	public List<PositionType> getReachablePositions(BoardType board, PositionType start) {
 		System.out.println("Suche erreichbare Positionen...");
