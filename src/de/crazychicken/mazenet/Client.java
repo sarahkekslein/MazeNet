@@ -108,7 +108,7 @@ public class Client {
 			pinPosition = reachable.get(0);
 		}
 
-		}
+		
 		
 		// Zug senden
 		this.connection.sendMove(shiftPosition.getRow(), shiftPosition.getCol(), pinPosition.getRow(),
@@ -143,7 +143,9 @@ public class Client {
 				System.out.println("Zu lang gebraucht!");
 				// Andere KI
 			}
-
+		}
+	}
+	
 	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col, CardType shiftCard, AwaitMoveMessageType awaitMoveMessage){		shiftPosition.setRow(row);
 		shiftPosition.setCol(col);
 		if (!positionEquals(shiftPosition, awaitMoveMessage.getBoard().getForbidden())) {
