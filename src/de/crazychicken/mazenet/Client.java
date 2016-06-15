@@ -48,9 +48,10 @@ public class Client {
 			// Aktion je nach Typ der Nachricht ausf√ºhren
 			if (message.getMcType() == MazeComType.DISCONNECT) {
 				onDisconnect();
-				return;
+				break;
 			} else if (message.getMcType() == MazeComType.WIN) {
 				onWin(message.getWinMessage().getWinner());
+				break;
 			} else if (message.getMcType() == MazeComType.AWAITMOVE) {
 				onAwaitMove(message.getAwaitMoveMessage());
 			}
@@ -60,39 +61,36 @@ public class Client {
 	private void onAwaitMove(AwaitMoveMessageType awaitMoveMessage) throws UnmarshalException, IOException {
 		System.out.println("Wir sind dran! Runde " + this.moveCount);
 		this.moveCount++;
-		
-		
+
 		PositionType shiftPosition = new PositionType();
 		PositionType pinPosition = new PositionType();
 		CardType shiftCard = new CardType();
 		boolean foundTreasure = false;
-		for (int i = 1; i < 6; i+=2) {
-//			System.out.println("ƒuﬂere Schleife: " + i);
-			if (foundTreasure)  {
+		for (int i = 1; i < 6; i += 2) {
+			// System.out.println("ƒuﬂere Schleife: " + i);
+			if (foundTreasure) {
 				break;
 			}
-			for (int j = 0; j < 7; j+=6) {
-//				System.out.println("Innere Schleife: " + j);
-				
-				foundTreasure = searchMove(pinPosition, shiftPosition, i, j,shiftCard, awaitMoveMessage);
-				if(!foundTreasure){
-					foundTreasure = searchMove(pinPosition, shiftPosition, j, i,shiftCard, awaitMoveMessage);
+			for (int j = 0; j < 7; j += 6) {
+				// System.out.println("Innere Schleife: " + j);
+
+				foundTreasure = searchMove(pinPosition, shiftPosition, i, j, shiftCard, awaitMoveMessage);
+				if (!foundTreasure) {
+					foundTreasure = searchMove(pinPosition, shiftPosition, j, i, shiftCard, awaitMoveMessage);
 				}
-				if(foundTreasure){
+				if (foundTreasure) {
 					break;
 				}
-				
-				
-				
+
 			}
-			
+
 		}
-		
+
 		if (!foundTreasure) {
-//			System.out.println("Zufall!");
+			// System.out.println("Zufall!");
 			Board b = new Board(awaitMoveMessage.getBoard());
-			while (positionEquals(shiftPosition = randomShiftPosition(), awaitMoveMessage.getBoard().getForbidden()));
-			
+			while (positionEquals(shiftPosition = randomShiftPosition(), awaitMoveMessage.getBoard().getForbidden()))
+				;
 
 			shiftCard.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
 			shiftCard.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
@@ -109,11 +107,14 @@ public class Client {
 
 		}
 
-		
-//		System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol()); 
-//		System.out.println("Shift:" + shiftPosition.getRow() + ", " + shiftPosition.getCol());
+		// System.out.println("Pin:" + pinPosition.getRow() + ", " +
+		// pinPosition.getCol());
+		// System.out.println("Shift:" + shiftPosition.getRow() + ", " +
+		// shiftPosition.getCol());
 		if (awaitMoveMessage.getBoard().getForbidden() != null) {
-//			System.out.println("Forbidden:" + awaitMoveMessage.getBoard().getForbidden().getRow() + ", " + awaitMoveMessage.getBoard().getForbidden().getCol()); 
+			// System.out.println("Forbidden:" +
+			// awaitMoveMessage.getBoard().getForbidden().getRow() + ", " +
+			// awaitMoveMessage.getBoard().getForbidden().getCol());
 		}
 		// Zug senden
 		this.connection.sendMove(shiftPosition.getRow(), shiftPosition.getCol(), pinPosition.getRow(),
@@ -125,50 +126,77 @@ public class Client {
 			System.err.println("Fehler: " + acceptMessage.getErrorCode());
 		}
 	}
-	
-	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col, CardType shiftCard, AwaitMoveMessageType awaitMoveMessage){
+
+	private boolean searchMove(PositionType pinPosition, PositionType shiftPosition, int row, int col,
+			CardType shiftCard, AwaitMoveMessageType awaitMoveMessage) {
 		shiftPosition.setRow(row);
-		shiftPosition.setCol(col);				
+		shiftPosition.setCol(col);
 		if (!positionEquals(shiftPosition, awaitMoveMessage.getBoard().getForbidden())) {
-//			System.out.println("nicht verboten");
+			// System.out.println("nicht verboten");
 			// Schiebekarte kopieren
-			for(int i=0; i<= 3; i++ ){
-			CardType shiftCardCopy = new CardType();
-			shiftCardCopy.setOpenings(awaitMoveMessage.getBoard().getShiftCard().getOpenings());
-//			System.out.println("Vor drehen awaitMoveMessage.getBoard().getShiftCard().getOpenings(): Oben: " + awaitMoveMessage.getBoard().getShiftCard().getOpenings().isTop() + ", Rechts: " + awaitMoveMessage.getBoard().getShiftCard().getOpenings().isRight()+ ", Links: "+ awaitMoveMessage.getBoard().getShiftCard().getOpenings().isLeft() + ", Unten: "+ awaitMoveMessage.getBoard().getShiftCard().getOpenings().isBottom() );
-			shiftCardCopy.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
-			turnCard(shiftCardCopy);
-//			System.out.println("nach drehen shiftCard: Oben: " + awaitMoveMessage.getBoard().getShiftCard().getOpenings().isTop() + ", Rechts: " + awaitMoveMessage.getBoard().getShiftCard().getOpenings().isRight()+ ", Links: "+ awaitMoveMessage.getBoard().getShiftCard().getOpenings().isLeft() + ", Unten: "+ awaitMoveMessage.getBoard().getShiftCard().getOpenings().isBottom() );
-			
-			CardType.Pin pin = new Pin();
-			pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().getPin().getPlayerID());
-			shiftCardCopy.setPin(pin);
-
-			// schieben simulieren
-			Board board = new Board(awaitMoveMessage.getBoard());
-			doShift(board, shiftCardCopy, shiftPosition);
-
-			// alle erreichbaren Positionen finden
-			PositionType currentPosition = findPlayer(board);
-			List<PositionType> reachable = getReachablePositions(board, currentPosition);
-
-			//wenn Schatz erreichbar, dort hingehen
-			TreasureType treasure = awaitMoveMessage.getTreasure();
-//			System.out.println("Suche Schatz " + row +";" +col);
-			for (PositionType position : reachable) {
-				Card c = new Card(board.getCard(position.getRow(), position.getCol()));					
-				if (c.getTreasure() == treasure) {
-					pinPosition.setCol(position.getCol()); 
-					pinPosition.setRow(position.getRow());
-//					System.out.println("Schatz gefunden!");
-//					System.out.println("Pin:" + pinPosition.getRow() + ", " + pinPosition.getCol()); 
-//					System.out.println("Shift:" + shiftPosition.getRow() + ", " + shiftPosition.getCol());
-					shiftCard.setOpenings(shiftCardCopy.getOpenings());
-					return true;							
+			for (int i = 0; i <= 3; i++) {
+				Openings openings = awaitMoveMessage.getBoard().getShiftCard().getOpenings();
+				if(i>= 2 && isStraight(openings)){
+					System.out.println("Gerade");
+					break;
 				}
+				CardType shiftCardCopy = new CardType();
+				shiftCardCopy.setOpenings(openings);
+				// System.out.println("Vor drehen
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings():
+				// Oben: " +
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isTop()
+				// + ", Rechts: " +
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isRight()+
+				// ", Links: "+
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isLeft()
+				// + ", Unten: "+
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isBottom()
+				// );
+				shiftCardCopy.setTreasure(awaitMoveMessage.getBoard().getShiftCard().getTreasure());
+				turnCard(shiftCardCopy);
+				// System.out.println("nach drehen shiftCard: Oben: " +
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isTop()
+				// + ", Rechts: " +
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isRight()+
+				// ", Links: "+
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isLeft()
+				// + ", Unten: "+
+				// awaitMoveMessage.getBoard().getShiftCard().getOpenings().isBottom()
+				// );
+
+				CardType.Pin pin = new Pin();
+				pin.getPlayerID().addAll(awaitMoveMessage.getBoard().getShiftCard().getPin().getPlayerID());
+				shiftCardCopy.setPin(pin);
+
+				// schieben simulieren
+				Board board = new Board(awaitMoveMessage.getBoard());
+				doShift(board, shiftCardCopy, shiftPosition);
+
+				// alle erreichbaren Positionen finden
+				PositionType currentPosition = findPlayer(board);
+				List<PositionType> reachable = getReachablePositions(board, currentPosition);
+
+				// wenn Schatz erreichbar, dort hingehen
+				TreasureType treasure = awaitMoveMessage.getTreasure();
+				// System.out.println("Suche Schatz " + row +";" +col);
+				for (PositionType position : reachable) {
+					Card c = new Card(board.getCard(position.getRow(), position.getCol()));
+					if (c.getTreasure() == treasure) {
+						pinPosition.setCol(position.getCol());
+						pinPosition.setRow(position.getRow());
+						// System.out.println("Schatz gefunden!");
+						// System.out.println("Pin:" + pinPosition.getRow() + ",
+						// " + pinPosition.getCol());
+						// System.out.println("Shift:" + shiftPosition.getRow()
+						// + ", " + shiftPosition.getCol());
+						shiftCard.setOpenings(shiftCardCopy.getOpenings());
+						return true;
+					}
+				}
+
 			}
-			
-		}}
+		}
 		return false;
 	}
 
@@ -183,8 +211,8 @@ public class Client {
 
 		return (position1.getRow() == position2.getRow()) && (position1.getCol() == position2.getCol());
 	}
-	
-	private void turnCard(CardType card){
+
+	private void turnCard(CardType card) {
 		Openings openings = card.getOpenings();
 		boolean a;
 		a = openings.isTop();
@@ -192,8 +220,11 @@ public class Client {
 		openings.setLeft(openings.isBottom());
 		openings.setBottom(openings.isRight());
 		openings.setRight(a);
-		
-			
+
+	}
+
+	private boolean isStraight(Openings openings) {
+		return (openings.isBottom() == openings.isTop() && openings.isLeft() == openings.isRight());
 	}
 
 	private PositionType findPlayer(BoardType board) {
@@ -263,7 +294,7 @@ public class Client {
 	}
 
 	private void onWin(Winner winner) {
-		System.out.println("Spiel vorbei! Gewinner hat: " + winner.getValue());
+		System.out.println("Spiel vorbei! Gewinner ist: " + winner.getValue());
 	}
 
 	private void onDisconnect() {
@@ -294,7 +325,6 @@ public class Client {
 
 		return position;
 	}
-	
 
 	public List<PositionType> getReachablePositions(BoardType board, PositionType start) {
 		System.out.println("Suche erreichbare Positionen...");
